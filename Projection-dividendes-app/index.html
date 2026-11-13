@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d7457">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dividendes">
+<style>html{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Projection de dividendes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout : établi en deux colonnes — réglages à gauche, résultats à droite ; une seule colonne sur téléphone */
+:root{
+  --bg:#eef2f0; --surface:#ffffff; --ink:#15211d; --muted:#596963; --line:#d6dedb; --accent:#0d7457; --accent-soft:#dcefe7;
+  --pea:#2f5fd0; --cto:#0b8c86; --scpi:#c4840c; --crypto:#7a4fd6; --epargne:#7a8783; --warn:#b4471f;
+  --f-display:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1412; --surface:#16201c; --ink:#e4ece9; --muted:#93a39d; --line:#283531; --accent:#4cc79f; --accent-soft:#1b3a30;
+  --pea:#7399f2; --cto:#3fcac2; --scpi:#e8b24c; --crypto:#ab8cf2; --epargne:#9aa8a3; --warn:#ef8a62; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1412; --surface:#16201c; --ink:#e4ece9; --muted:#93a39d; --line:#283531; --accent:#4cc79f; --accent-soft:#1b3a30;
+  --pea:#7399f2; --cto:#3fcac2; --scpi:#e8b24c; --crypto:#ab8cf2; --epargne:#9aa8a3; --warn:#ef8a62; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(24px,3.2vw,34px);letter-spacing:-.02em;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+h2{font-family:var(--f-display);font-size:17px;font-weight:600;margin:0}
+
+/* Versement mensuel : le contrôle principal */
+.hero-ctl{display:flex;flex-direction:column;gap:8px}
+.big{font-family:var(--f-display);font-size:42px;font-weight:700;letter-spacing:-.03em;line-height:1;color:var(--accent)}
+.big small{font-size:16px;color:var(--muted);font-weight:500;letter-spacing:0}
+input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 13px var(--f-body);border:1px solid var(--line);background:transparent;color:var(--ink);padding:5px 10px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.chip:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.toggle{display:flex;align-items:center;gap:10px;cursor:pointer}
+.toggle input{width:18px;height:18px;accent-color:var(--accent)}
+
+/* Répartition */
+.alloc{display:flex;flex-direction:column;gap:10px}
+.alloc-item{display:grid;grid-template-columns:12px minmax(0,1fr) 64px;gap:8px;align-items:center}
+.dot{width:10px;height:10px;border-radius:3px}
+.alloc-item input[type=number],.adv input[type=number]{width:100%;font:500 13px var(--f-num);padding:5px 6px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);text-align:right}
+.bar{display:flex;height:8px;border-radius:999px;overflow:hidden;background:var(--line)}
+.bar span{display:block;height:100%}
+.note{font-size:12px;color:var(--muted)}
+.warn{color:var(--warn)}
+
+/* Résultats */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:1040px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:12px;background:var(--bg);min-width:0}
+.kpi .v{font-family:var(--f-display);font-weight:700;font-size:24px;letter-spacing:-.02em;line-height:1.15}
+.kpi.main{background:var(--accent-soft)}
+.kpi.main .v{color:var(--accent);font-size:28px}
+.kpi .s{font-size:12px;color:var(--muted)}
+.chart-box{position:relative;width:100%;height:320px}
+canvas{display:block;width:100%;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px;box-shadow:0 6px 18px rgba(0,0,0,.12);min-width:170px}
+.tip b{font-family:var(--f-display)}
+.tip .r{display:flex;justify-content:space-between;gap:12px}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+@media (max-width:1040px){.cols{grid-template-columns:minmax(0,1fr)}}
+.tscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.cur td{background:var(--accent-soft);color:var(--accent);font-weight:600}
+details{border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-family:var(--f-display);font-weight:600;font-size:15px}
+.adv{margin-top:12px}
+.adv td{padding:5px 4px}
+.adv td:first-child{font-family:var(--f-body);font-weight:500}
+.adv input[type=number]{width:72px}
+.btn{font:600 13px var(--f-body);background:transparent;border:1px solid var(--line);color:var(--ink);padding:7px 12px;border-radius:8px;cursor:pointer}
+.foot{font-size:12px;color:var(--muted);max-width:80ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Projection de dividendes</h1>
+      <p class="sub">Point de départ : ton patrimoine au 13/11/2026, soit <strong id="startTotal">12 723 €</strong> répartis sur PEA, CTO, SCPI et crypto.</p>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- Réglages -->
+    <section class="panel" aria-label="Réglages">
+      <div class="hero-ctl">
+        <span class="label">Versement mensuel</span>
+        <div class="big"><span class="num" id="monthlyOut">400</span> €<small> / mois</small></div>
+        <input type="range" id="monthly" min="0" max="2000" step="25" value="400" aria-label="Versement mensuel en euros">
+        <div class="chips" id="quick">
+          <button class="chip" data-v="200">200 €</button>
+          <button class="chip" data-v="400">400 €</button>
+          <button class="chip" data-v="600">600 €</button>
+          <button class="chip" data-v="800">800 €</button>
+          <button class="chip" data-v="1000">1 000 €</button>
+        </div>
+      </div>
+
+      <div class="hero-ctl">
+        <div class="row"><span class="label">Horizon</span><span class="num"><span id="horizonOut">20</span> ans · <span id="endYear">2046</span></span></div>
+        <input type="range" id="horizon" min="5" max="40" step="1" value="20" aria-label="Horizon en années">
+      </div>
+
+      <div class="alloc">
+        <div class="row"><span class="label">Répartition du versement</span><span class="note num" id="allocSum">100 %</span></div>
+        <div class="bar" id="allocBar"></div>
+        <div id="allocList"></div>
+        <p class="note" id="allocWarn" hidden></p>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label class="toggle"><input type="checkbox" id="reinvest" checked> Réinvestir les dividendes jusqu'à l'horizon</label>
+        <label class="toggle"><input type="checkbox" id="real"> En euros d'aujourd'hui (inflation déduite)</label>
+        <label class="toggle"><input type="checkbox" id="net"> Montants nets d'impôts estimés</label>
+      </div>
+    </section>
+
+    <!-- Résultats -->
+    <section class="panel" aria-label="Résultats">
+      <div class="kpis">
+        <div class="kpi main"><span class="label">Rente mensuelle en <span id="kEndYear">2046</span></span><span class="v num" id="kMonthly">—</span><span class="s" id="kMonthlyS">dividendes / 12</span></div>
+        <div class="kpi"><span class="label">Dividendes annuels</span><span class="v num" id="kAnnual">—</span><span class="s" id="kToday">aujourd'hui : —</span></div>
+        <div class="kpi"><span class="label">Capital projeté</span><span class="v num" id="kCapital">—</span><span class="s" id="kYield">—</span></div>
+        <div class="kpi"><span class="label">Total versé</span><span class="v num" id="kPaid">—</span><span class="s" id="kPaidS">départ + versements</span></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="row"><h2>Dividendes annuels par enveloppe</h2><span class="note" id="chartMode">brut, euros courants</span></div>
+        <div class="chart-box" id="chartBox">
+          <canvas id="chart" role="img" aria-label="Graphique des dividendes annuels projetés par enveloppe"></canvas>
+          <div class="tip" id="tip" hidden></div>
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+
+      <div class="cols">
+        <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+          <h2>Ce que change le versement</h2>
+          <p class="note">Rente mensuelle à l'horizon selon le montant investi chaque mois, avec les mêmes hypothèses.</p>
+          <div class="tscroll"><table id="effect"><thead><tr><th>Versement</th><th>Rente / mois</th><th>Capital</th></tr></thead><tbody></tbody></table></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+          <h2>Étapes</h2>
+          <p class="note">Ton PEA atteint 5 ans le 08/03/2028 : les retraits n'entraînent plus sa clôture.</p>
+          <div class="tscroll"><table id="steps"><thead><tr><th>Année</th><th>Capital</th><th>Div. / an</th><th>Div. / mois</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+
+      <details id="advanced">
+        <summary>Hypothèses par enveloppe</summary>
+        <div class="adv tscroll">
+          <table>
+            <thead><tr><th>Enveloppe</th><th>Valeur au départ (€)</th><th>Rendement dividende (%)</th><th>Croissance du capital (%/an)</th><th>Impôt sur revenus (%)</th></tr></thead>
+            <tbody id="advBody"></tbody>
+          </table>
+          <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:12px">
+            <label class="toggle" style="cursor:default">Frais d'entrée SCPI (%) <input type="number" id="scpiFee" min="0" max="20" step="0.5" value="12" style="width:72px"></label>
+            <label class="toggle" style="cursor:default">Inflation (%/an) <input type="number" id="infl" min="0" max="10" step="0.1" value="2" style="width:72px"></label>
+            <button class="btn" id="reset">Revenir aux valeurs de départ</button>
+          </div>
+          <p class="note" style="margin-top:10px">Valeurs par défaut : PEA à 4,5 % de rendement (moyenne de tes lignes), CTO à 1 % (ETF Islamic distribuant autour de 1,5 % et or sans revenu), SCPI à 4,5 % (objectif de Corum Eurion, 5,73 % distribués en 2025), crypto à 2 % (staking ETH et SOL après commission), épargne de précaution à 1,5 %. Impôts : PEA de plus de 5 ans 17,2 %, CTO et crypto 30 %, SCPI européenne environ 15 % (à ajuster selon ta tranche).</p>
+        </div>
+      </details>
+    </section>
+  </div>
+
+  <p class="foot">Projection illustrative : les rendements, la croissance et la fiscalité sont des hypothèses moyennes et constantes, alors que les marchés, les dividendes et les règles fiscales varient. Les valeurs de départ viennent de ton tableau de suivi au 13/11/2026 (SCPI au prix de souscription). Ce n'est pas un conseil en investissement.</p>
+</div>
+
+<script>
+(function(){
+  const START_YEAR = 2026;
+  const ENVS = [
+    {k:"pea",    name:"PEA",                   start:7769.59, alloc:25, yield:4.5, growth:2.0, tax:17.2},
+    {k:"cto",    name:"CTO",                   start:2183.72, alloc:25, yield:1.0, growth:5.0, tax:30},
+    {k:"scpi",   name:"SCPI Corum Eurion",     start:1840.36, alloc:25, yield:4.5, growth:0.0, tax:15},
+    {k:"crypto", name:"Crypto",                start:929.57,  alloc:25, yield:2.0, growth:3.0, tax:30},
+    {k:"epargne",name:"Épargne de précaution", start:0,       alloc:0,  yield:1.5, growth:0.0, tax:0}
+  ];
+  const DEFAULTS = {monthly:400, horizon:20, reinvest:true, real:false, net:false, scpiFee:12, infl:2,
+    e: Object.fromEntries(ENVS.map(e=>[e.k,{start:e.start,alloc:e.alloc,yield:e.yield,growth:e.growth,tax:e.tax}]))};
+  const KEY = "projection-dividendes-v1";
+  let S = load();
+
+  function load(){
+    try{ const raw = localStorage.getItem(KEY); if(raw){ const p = JSON.parse(raw); return merge(structuredClone(DEFAULTS), p); } }catch(e){}
+    return structuredClone(DEFAULTS);
+  }
+  function merge(base, p){
+    for(const k of Object.keys(base)){
+      if(k==="e"){ for(const ek of Object.keys(base.e)){ if(p.e && p.e[ek]) Object.assign(base.e[ek], p.e[ek]); } }
+      else if(p[k]!==undefined) base[k]=p[k];
+    }
+    return base;
+  }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+  const fmt = new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0});
+  const eur = v => fmt.format(Math.round(v)) + " €";
+  const pct = v => new Intl.NumberFormat("fr-FR",{maximumFractionDigits:1}).format(v) + " %";
+
+  // Simulation mensuelle : versement réparti, croissance, dividendes (réinvestis ou non)
+  function simulate(s, monthlyOverride){
+    const monthly = monthlyOverride ?? s.monthly;
+    const allocSum = ENVS.reduce((a,e)=>a + Math.max(0, +s.e[e.k].alloc||0), 0);
+    const fee = (+s.scpiFee||0)/100;
+    const v = Object.fromEntries(ENVS.map(e=>[e.k, +s.e[e.k].start||0]));
+    let paid = ENVS.reduce((a,e)=>a + (+s.e[e.k].start||0), 0);
+    const start = {capital: paid, div:{}, divNet:{}};
+    ENVS.forEach(e=>{ const p=s.e[e.k]; start.div[e.k]=v[e.k]*p.yield/100; start.divNet[e.k]=start.div[e.k]*(1-p.tax/100); });
+    const years = [];
+    for(let y=1; y<=s.horizon; y++){
+      const div = {}, divNet = {};
+      ENVS.forEach(e=>{ div[e.k]=0; divNet[e.k]=0; });
+      for(let m=0; m<12; m++){
+        ENVS.forEach(e=>{
+          const p = s.e[e.k];
+          const share = allocSum>0 ? Math.max(0,+p.alloc||0)/allocSum : 0;
+          const contrib = monthly*share;
+          paid += contrib;
+          const invested = e.k==="scpi" ? contrib*(1-fee) : contrib;
+          v[e.k] = v[e.k]*Math.pow(1+(+p.growth||0)/100, 1/12) + invested;
+          const d = v[e.k]*(+p.yield||0)/100/12;
+          div[e.k] += d; divNet[e.k] += d*(1-(+p.tax||0)/100);
+          if(s.reinvest){ v[e.k] += (e.k==="scpi" ? d*(1-fee) : d); }
+        });
+      }
+      const defl = s.real ? Math.pow(1+(+s.infl||0)/100, y) : 1;
+      const capital = ENVS.reduce((a,e)=>a+v[e.k],0);
+      const row = {year: START_YEAR+y, n:y, capital: capital/defl, paid: paid/defl, div:{}, divNet:{}};
+      ENVS.forEach(e=>{ row.div[e.k]=div[e.k]/defl; row.divNet[e.k]=divNet[e.k]/defl; });
+      years.push(row);
+    }
+    return {years, start};
+  }
+  const total = (row, net) => ENVS.reduce((a,e)=>a+(net?row.divNet[e.k]:row.div[e.k]),0);
+
+  // ---------- Interface ----------
+  const $ = id => document.getElementById(id);
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  function buildAlloc(){
+    const list = $("allocList"); list.innerHTML = "";
+    ENVS.forEach(e=>{
+      const div = document.createElement("div"); div.className="alloc-item";
+      div.innerHTML = `<span class="dot" style="background:var(--${e.k})"></span><label for="alloc-${e.k}">${e.name}</label>
+        <input type="number" id="alloc-${e.k}" min="0" max="100" step="5" value="${S.e[e.k].alloc}" aria-label="Part du versement pour ${e.name} en pourcentage">`;
+      list.appendChild(div);
+    });
+    list.style.display="flex"; list.style.flexDirection="column"; list.style.gap="8px";
+    list.addEventListener("input", ev=>{
+      const id = ev.target.id; if(!id.startsWith("alloc-")) return;
+      S.e[id.slice(6)].alloc = Math.max(0, +ev.target.value||0); update();
+    });
+  }
+  function buildAdv(){
+    const body = $("advBody"); body.innerHTML="";
+    ENVS.forEach(e=>{
+      const p=S.e[e.k], tr=document.createElement("tr");
+      tr.innerHTML = `<td><span class="dot" style="display:inline-block;background:var(--${e.k});margin-right:6px"></span>${e.name}</td>
+        <td><input type="number" id="start-${e.k}" step="10" min="0" value="${p.start}" aria-label="Valeur de départ ${e.name}"></td>
+        <td><input type="number" id="yield-${e.k}" step="0.1" min="0" max="20" value="${p.yield}" aria-label="Rendement dividende ${e.name}"></td>
+        <td><input type="number" id="growth-${e.k}" step="0.1" min="-20" max="30" value="${p.growth}" aria-label="Croissance ${e.name}"></td>
+        <td><input type="number" id="tax-${e.k}" step="0.1" min="0" max="60" value="${p.tax}" aria-label="Impôt ${e.name}"></td>`;
+      body.appendChild(tr);
+    });
+    body.addEventListener("input", ev=>{
+      const [field, k] = ev.target.id.split("-"); if(!S.e[k]) return;
+      S.e[k][field] = +ev.target.value||0; update();
+    });
+  }
+  function buildLegend(){
+    $("legend").innerHTML = ENVS.map(e=>`<span><span class="dot" style="background:var(--${e.k})"></span>${e.name}</span>`).join("");
+  }
+  function syncControls(){
+    $("monthly").value=S.monthly; $("horizon").value=S.horizon;
+    $("reinvest").checked=S.reinvest; $("real").checked=S.real; $("net").checked=S.net;
+    $("scpiFee").value=S.scpiFee; $("infl").value=S.infl;
+    ENVS.forEach(e=>{ ["start","yield","growth","tax"].forEach(f=>{ const el=$(`${f}-${e.k}`); if(el) el.value=S.e[e.k][f]; }); const a=$(`alloc-${e.k}`); if(a) a.value=S.e[e.k].alloc; });
+  }
+
+  let last = null;
+  function update(){
+    save();
+    const res = simulate(S); last = res;
+    const end = res.years[res.years.length-1];
+    const net = S.net;
+    const annual = total(end, net);
+    const todayDiv = ENVS.reduce((a,e)=>a+(net?res.start.divNet[e.k]:res.start.div[e.k]),0);
+
+    $("monthlyOut").textContent = fmt.format(S.monthly);
+    $("startTotal").textContent = eur(res.start.capital);
+    $("horizonOut").textContent = S.horizon;
+    $("endYear").textContent = end.year; $("kEndYear").textContent = end.year;
+    document.querySelectorAll("#quick .chip").forEach(b=>b.setAttribute("aria-pressed", String(+b.dataset.v===+S.monthly)));
+
+    // Répartition
+    const sum = ENVS.reduce((a,e)=>a+Math.max(0,+S.e[e.k].alloc||0),0);
+    $("allocSum").textContent = fmt.format(sum)+" %";
+    $("allocSum").classList.toggle("warn", Math.abs(sum-100)>0.01);
+    $("allocBar").innerHTML = sum>0 ? ENVS.map(e=>`<span style="width:${Math.max(0,+S.e[e.k].alloc||0)/sum*100}%;background:var(--${e.k})"></span>`).join("") : "";
+    const w = $("allocWarn");
+    if(sum===0){ w.hidden=false; w.className="note warn"; w.textContent="Aucune enveloppe ne reçoit le versement : indique au moins une part."; }
+    else if(Math.abs(sum-100)>0.01){ w.hidden=false; w.className="note"; w.textContent=`Le total fait ${fmt.format(sum)} % : les parts sont ramenées à 100 % au prorata pour le calcul.`; }
+    else w.hidden=true;
+
+    // Indicateurs
+    $("kMonthly").textContent = eur(annual/12);
+    $("kMonthlyS").textContent = (net ? "net estimé" : "brut") + (S.real ? ", en euros d'aujourd'hui" : "");
+    $("kAnnual").textContent = eur(annual);
+    $("kToday").textContent = "aujourd'hui : " + eur(todayDiv) + " / an";
+    $("kCapital").textContent = eur(end.capital);
+    $("kYield").textContent = "rendement sur capital : " + pct(end.capital>0 ? total(end,false)/end.capital*100 : 0);
+    $("kPaid").textContent = eur(end.paid);
+    $("kPaidS").textContent = "dont " + eur(res.start.capital/(S.real?Math.pow(1+S.infl/100,S.horizon):1)) + " de départ";
+    $("chartMode").textContent = (net?"net estimé":"brut") + ", " + (S.real?"euros d'aujourd'hui":"euros courants");
+
+    // Effet du versement
+    const options = [...new Set([0,200,400,600,800,1000,1500, +S.monthly])].sort((a,b)=>a-b);
+    $("effect").tBodies[0].innerHTML = options.map(m=>{
+      const r = simulate(S, m); const e = r.years[r.years.length-1];
+      return `<tr class="${m===+S.monthly?"cur":""}"><td>${eur(m)} / mois</td><td>${eur(total(e,net)/12)}</td><td>${eur(e.capital)}</td></tr>`;
+    }).join("");
+
+    // Étapes
+    const marks = [5,10,15,20,25,30,35,40].filter(n=>n<S.horizon); marks.push(S.horizon);
+    $("steps").tBodies[0].innerHTML = marks.map(n=>{
+      const r = res.years[n-1]; const t = total(r,net);
+      return `<tr class="${n===S.horizon?"cur":""}"><td>${r.year} (${n} ans)</td><td>${eur(r.capital)}</td><td>${eur(t)}</td><td>${eur(t/12)}</td></tr>`;
+    }).join("");
+
+    draw();
+  }
+
+  // ---------- Graphique (canvas) ----------
+  const canvas = $("chart"), box = $("chartBox"), tip = $("tip");
+  let geom = null;
+  function niceStep(max, ticks){
+    const raw = max/ticks, mag = Math.pow(10, Math.floor(Math.log10(raw))), n = raw/mag;
+    return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*mag;
+  }
+  function draw(){
+    if(!last) return;
+    const dpr = window.devicePixelRatio||1, W = box.clientWidth, H = box.clientHeight;
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    const ctx = canvas.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
+    const rows = last.years, net = S.net;
+    const max = Math.max(1, ...rows.map(r=>total(r,net)));
+    const step = niceStep(max, 5), top = Math.ceil(max/step)*step;
+    ctx.font = "500 11px " + css("--f-num");
+    const yLabels = []; for(let v=0; v<=top+1e-9; v+=step) yLabels.push(v);
+    const padL = Math.max(...yLabels.map(v=>ctx.measureText(eur(v)).width)) + 12, padR = 8, padT = 10, padB = 26;
+    const cw = W-padL-padR, ch = H-padT-padB;
+    const y = v => padT + ch - v/top*ch;
+    // grille
+    ctx.strokeStyle = css("--line"); ctx.fillStyle = css("--muted"); ctx.lineWidth = 1; ctx.textAlign="right"; ctx.textBaseline="middle";
+    yLabels.forEach(v=>{ const yy=Math.round(y(v))+.5; ctx.beginPath(); ctx.moveTo(padL,yy); ctx.lineTo(W-padR,yy); ctx.stroke(); ctx.fillText(eur(v), padL-8, yy); });
+    // barres empilées
+    const n = rows.length, slot = cw/n, bw = Math.max(2, Math.min(28, slot*0.7));
+    const colors = Object.fromEntries(ENVS.map(e=>[e.k, css("--"+e.k)]));
+    rows.forEach((r,i)=>{
+      const x = padL + i*slot + (slot-bw)/2; let acc = 0;
+      ENVS.forEach(e=>{
+        const val = net ? r.divNet[e.k] : r.div[e.k]; if(val<=0) return;
+        const y1 = y(acc+val), y0 = y(acc); ctx.fillStyle = colors[e.k]; ctx.fillRect(x, y1, bw, Math.max(0.5,y0-y1)); acc += val;
+      });
+    });
+    // axe des années
+    ctx.fillStyle = css("--muted"); ctx.textAlign="center"; ctx.textBaseline="top";
+    const every = n<=12?1:n<=20?2:n<=30?5:5;
+    rows.forEach((r,i)=>{ if((n-1-i)%every===0) ctx.fillText(String(r.year), padL+i*slot+slot/2, H-padB+8); });
+    // repère PEA 5 ans (mars 2028)
+    const idx = rows.findIndex(r=>r.year===2028);
+    if(idx>=0){
+      const xx = Math.round(padL + idx*slot + slot*0.2)+.5;
+      ctx.strokeStyle = css("--accent"); ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(xx,padT); ctx.lineTo(xx,padT+ch); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = css("--accent"); ctx.textAlign="left"; ctx.textBaseline="top"; ctx.font = "600 11px " + css("--f-body");
+      ctx.fillText("PEA 5 ans", xx+4, padT+2);
+    }
+    geom = {padL, slot, n, padT, ch, W};
+  }
+  function showTip(ev){
+    if(!geom || !last) return;
+    const rect = canvas.getBoundingClientRect(), mx = ev.clientX-rect.left;
+    const i = Math.floor((mx-geom.padL)/geom.slot);
+    if(i<0 || i>=geom.n){ tip.hidden=true; return; }
+    const r = last.years[i], net=S.net;
+    tip.innerHTML = `<b>${r.year}</b> · ${r.n} an${r.n>1?"s":""}` +
+      ENVS.filter(e=>(net?r.divNet[e.k]:r.div[e.k])>0.5).map(e=>`<div class="r"><span><span class="dot" style="display:inline-block;background:var(--${e.k});margin-right:6px"></span>${e.name}</span><span class="num">${eur(net?r.divNet[e.k]:r.div[e.k])}</span></div>`).join("") +
+      `<div class="r" style="margin-top:4px;font-weight:600"><span>Total / an</span><span class="num">${eur(total(r,net))}</span></div><div class="r"><span>Soit / mois</span><span class="num">${eur(total(r,net)/12)}</span></div>`;
+    tip.hidden=false;
+    const tw = tip.offsetWidth; let left = mx+14; if(left+tw>rect.width) left = mx-tw-14;
+    tip.style.left = Math.max(0,left)+"px"; tip.style.top = "8px";
+  }
+  canvas.addEventListener("mousemove", showTip);
+  canvas.addEventListener("mouseleave", ()=>tip.hidden=true);
+  canvas.addEventListener("touchstart", ev=>{ showTip(ev.touches[0]); }, {passive:true});
+
+  // ---------- Événements ----------
+  $("monthly").addEventListener("input", e=>{ S.monthly=+e.target.value; update(); });
+  $("horizon").addEventListener("input", e=>{ S.horizon=+e.target.value; update(); });
+  $("quick").addEventListener("click", e=>{ const b=e.target.closest(".chip"); if(!b) return; S.monthly=+b.dataset.v; $("monthly").value=S.monthly; update(); });
+  ["reinvest","real","net"].forEach(id=>$(id).addEventListener("change", e=>{ S[id]=e.target.checked; update(); }));
+  $("scpiFee").addEventListener("input", e=>{ S.scpiFee=+e.target.value||0; update(); });
+  $("infl").addEventListener("input", e=>{ S.infl=+e.target.value||0; update(); });
+  $("reset").addEventListener("click", ()=>{ S = structuredClone(DEFAULTS); syncControls(); update(); });
+  new ResizeObserver(()=>draw()).observe(box);
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+  new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+
+  buildAlloc(); buildAdv(); buildLegend(); syncControls(); update();
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
+}
+</script>
+</body>
+</html>
